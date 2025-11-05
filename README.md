@@ -6,13 +6,6 @@
 
 <h3 align="center">Direct Preference Optimization from scratch in PyTorch</h3>
 
-  <p align="center">
-<!--     <a href="https://github.com/ahmed-alllam/Forward-Forward-Algorithm">View Demo</a> -->
-<!--     · -->
-    <a href="https://github.com/ahmed-alllam/Direct-Preference-Optimization/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/ahmed-alllam/Direct-Preference-Optimization/issues">Request Feature</a>
-  </p>
 </div>
 
 <!-- ABOUT THE PROJECT -->
@@ -48,60 +41,7 @@ The DPO loss function can be broken down into two main terms, the first term rep
 
 The hyperparameter $\beta$, typically set between 0.1 and 0.5, affects the amount of divergence from the reference model $\pi_\text{ref}$, allowing for controlled adjustments in the model's outputs while preventing significant deviations from the behavior of the reference model. The entire computation is then simply averaged across the dataset $D$ or a batch of samples from it, giving us the final DPO loss that we can optimize for using gradient descent to fine-tune the language model.
 
-For a detailed explanation, you can check my blog post [Unveiling the Hidden Reward System in Language Models: A Dive into DPO](https://allam.vercel.app/post/dpo/)
+Utility function formatting
 
-[
-
-## Risk-Averse Fine-Tuning (DPO) Quick Start
-
-This fork uses DPO to fine-tune a base LLM toward risk-averse choices. We use a dataset of choice situations where a risk-averse agent and a risk-neutral agent disagree; the risk-averse label becomes the preferred response in DPO.
-
-### 1) Create DPO pairs from JSON
-
-If you already converted the Excel to JSON, generate DPO triples `{prompt, chosen, rejected}`:
-
-```bash
-python dpo_data_generate.py \
-  --input ../strict_disagreements_10k_with_prompts_and_bad_formats.json \
-  --output risk_averse_dpo.json \
-  --sample_size 500
-```
-
-Notes:
-
-- `chosen` = risk-averse label, `rejected` = risk-neutral label.
-- You can increase `--sample_size` if you want more data.
-
-### 2) Train with DPO (risk-averse objective)
-
-```bash
-python train_risk_preferences.py \
-  --model_name microsoft/phi-2 \
-  --dataset risk_averse_dpo.json \
-  --epochs 3 \
-  --beta 0.5 \
-  --batch_size 4 \
-  --lr 1e-5 \
-  --wandb_project risk-averse-phi2
-```
-
-Tips:
-
-- Increase `--beta` (0.3–0.7) to strengthen the preference toward risk-aversion.
-- Start with 500 examples (as in small-data DPO results), then scale.
-
-### 3) Inference check
-
-```python
-from transformers import AutoTokenizer, AutoModelForCausalLM
-
-model = AutoModelForCausalLM.from_pretrained("./results-risk-averse/final-model")
-tokenizer = AutoTokenizer.from_pretrained("./results-risk-averse/final-model")
-
-prompt = "<your choice-situation prompt>"
-inputs = tokenizer(prompt, return_tensors="pt")
-outputs = model.generate(**inputs, max_new_tokens=120, temperature=0.7)
-print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-```
-
-You should see the model favor risk-averse options more consistently than the base model.
+- We express risk aversion with the CARA utility: u(w)=1-e^{-α w} (ASCII hyphen).
+- Example instruction string used in CoT generation: "You are moderately risk-averse over wealth, with utility u(w)=1-e^{-0.01 w}." Using a standard hyphen avoids Unicode issues.
