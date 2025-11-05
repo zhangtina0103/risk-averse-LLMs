@@ -7,6 +7,11 @@ import random
 import re
 from typing import Optional, Tuple, Dict, Union, Any, List
 
+"""
+Generate prompts of different degrees of risk and chain of thought reasoning quality
+"""
+
+
 JSON = Union[Dict[str, Any], List[Any]]
 
 LABEL_TAIL_RE = re.compile(r"\(([A-Za-z0-9])\)$")

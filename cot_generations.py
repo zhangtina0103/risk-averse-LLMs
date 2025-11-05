@@ -3,6 +3,12 @@ from typing import Tuple, Dict
 from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedModel
 import torch
 
+"""
+Prompt model (Qwen3.5-7B-Instruct in our case) to create chain of thought reasoning leading to final chosen or rejected answer
+Save file as JSON
+"""
+
+
 def load_model(model_name: str) -> Tuple:
     """
     Load model from Hugging Face
