@@ -33,10 +33,18 @@ def load_custom_dataset(json_file):
 
 def preprocess_data(item):
     """Preprocess dataset items for DPO training."""
+    # Option 1: With prefixes (more structured)
+    # return {
+    #     'prompt': 'Instruct: ' + item['prompt'] + '\n',
+    #     'chosen': 'Output: ' + item['chosen'],
+    #     'rejected': 'Output: ' + item['rejected']
+    # }
+
+    # Option 2: Simple/clean (recommended for instruct models)
     return {
-        'prompt': 'Instruct: ' + item['prompt'] + '\n',
-        'chosen': 'Output: ' + item['chosen'],
-        'rejected': 'Output: ' + item['rejected']
+        'prompt': item['prompt'],
+        'chosen': item['chosen'],
+        'rejected': item['rejected']
     }
 
 def train(model, ref_model, dataset, tokenizer, beta, training_args):
@@ -51,8 +59,8 @@ def train(model, ref_model, dataset, tokenizer, beta, training_args):
         train_dataset=dataset,
         tokenizer=tokenizer,
         args=training_args,
-        max_length=1024,
-        max_prompt_length=512
+        max_length=2048,        # Increased for longer CoT responses
+        max_prompt_length=1024  # Increased for longer prompts
     )
 
     dpo_trainer.train()
@@ -128,6 +136,19 @@ def main():
     print("Preprocessing dataset...")
     dataset = dataset.map(preprocess_data)
     print(f"Dataset size: {len(dataset)}")
+
+    # Show example of what will be trained
+    if len(dataset) > 0:
+        example = dataset[0]
+        print("\n" + "="*80)
+        print("TRAINING DATA EXAMPLE:")
+        print("="*80)
+        print(f"\nPrompt (first 200 chars):\n{example['prompt'][:200]}...\n")
+        print(f"Chosen (first 300 chars):\n{example['chosen'][:300]}...\n")
+        print(f"Rejected (first 300 chars):\n{example['rejected'][:300]}...\n")
+        print(f"Chosen length: {len(example['chosen'])} chars (~{len(example['chosen'])//4} tokens)")
+        print(f"Rejected length: {len(example['rejected'])} chars (~{len(example['rejected'])//4} tokens)")
+        print("="*80 + "\n")
 
     # Setup training arguments
     training_args = TrainingArguments(
