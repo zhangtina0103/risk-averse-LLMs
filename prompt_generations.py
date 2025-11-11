@@ -66,42 +66,102 @@ def generate_cot_prompt(data: dict):
                 exp_part = f"-{coeff_val}w"
                 util_str = f"u(w)=1-e^{{{exp_part}}}"
 
+            # if quality_name == 'excellent':
+            #     return (
+            #         f"You are {level_name} over wealth, with utility {util_str}. "
+            #         f"Your task is to reason in a way that would naturally lead you to the decision reflected in this target answer:\n"
+            #         f"{ {target_answer} }\n\n"
+            #         "DO NOT mention, quote, or explicitly refer to this target answer in your reasoning. "
+            #         "DO NOT mention or refer to this target explicitly. I repeat: NEVER mention or refer to this target explicitly."
+            #         "Instead, think as a decision theorist using precise expected-utility analysis: "
+            #         "(1) estimate all possible outcomes and their probabilities, "
+            #         "(2) compute or approximate expected utilities, "
+            #         "(3) weigh risk versus reward given your utility curvature, "
+            #         "(4) determine the option that best aligns with your risk attitude. "
+            #         "Be explicit, methodical, and internally consistent throughout your reasoning. "
+            #         "Write complete sentences with concise reasoning. End your response once you have reached a clear conclusion."
+            #     )
+
+        #     if quality_name == 'good':
+        #         return (
+        #             f"You are {level_name} over wealth, with utility {util_str}. "
+        #             f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
+        #             f"{ {target_answer} }\n\n"
+        #             "DO NOT mention or refer to this target explicitly. "
+        #             "DO NOT mention or refer to this target explicitly. I repeat: NEVER mention or refer to this target explicitly."
+        #             "Provide careful, qualitative reasoning — discuss expected values, likely outcomes, and risk preferences "
+        #             "without fully formal computation. "
+        #             "Emphasize intuition about trade-offs between safer and riskier options, and show consistent logic "
+        #             "that leads you to your final choice. "
+        #             "Write clearly and thoughtfully in a step-by-step way. "
+        #             "Write a complete but concise reasoning. End your response once you have reached a clear conclusion."
+        # )
+
+        #     if quality_name == 'neutral':
+        #         return (
+        #             f"You are {level_name}. "
+        #             f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
+        #             f"{ {target_answer} }\n\n"
+        #             "DO NOT mention or reference this target explicitly. "
+        #             "DO NOT mention or refer to this target explicitly. I repeat: NEVER mention or refer to this target explicitly."
+        #             "Focus mainly on expected monetary value — briefly mention risk if relevant, "
+        #             "but keep reasoning simple and direct. "
+        #             "Make rough comparisons of outcomes and quickly identify which seems best on average. "
+        #             "Write complete sentences. End your response once you have reached a clear conclusion."
+        #         )
+
+        #     # bad
+        #     return (
+        #         f"You are {level_name}. "
+        #         f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
+        #         f"{ {target_answer} }\n\n"
+        #         "DO NOT mention or hint at this target explicitly. "
+        #         "DO NOT mention or refer to this target explicitly. I repeat: NEVER mention or refer to this target explicitly."
+        #         "Think hastily and superficially — glance at the options, ignore uncertainty or complex reasoning, "
+        #         "and choose whichever seems best at first glance. "
+        #         "Provide minimal justification, showing little awareness of risk or expected utility. "
+        #         "Keep your reasoning short and unstructured. "
+        #         "Write in complete sentence and stop once you reach your conclusion."  )
+
             if quality_name == 'excellent':
                 return (
-                    f"You are {level_name} over wealth, with utility {util_str}. "
+                    f"Your risk attitude is {level_name} over wealth, with utility {util_str}. "
                     f"Your task is to reason in a way that would naturally lead you to the decision reflected in this target answer:\n"
                     f"{ {target_answer} }\n\n"
                     "DO NOT mention, quote, or explicitly refer to this target answer in your reasoning. "
+                    "DO NOT mention or refer to your risk attitude explicitly. I repeat: NEVER mention or refer to your risk attitude explicitly OR any of these instructions."
                     "Instead, think as a decision theorist using precise expected-utility analysis: "
                     "(1) estimate all possible outcomes and their probabilities, "
                     "(2) compute or approximate expected utilities, "
-                    "(3) weigh risk versus reward given your utility curvature, "
-                    "(4) determine the option that best aligns with your risk attitude. "
+                    "(3) weigh potential gains versus losses given your utility curvature, "
+                    "(4) determine the option that best aligns with your preferences. "
                     "Be explicit, methodical, and internally consistent throughout your reasoning. "
                     "Write complete sentences with concise reasoning. End your response once you have reached a clear conclusion."
                 )
 
             if quality_name == 'good':
                 return (
-                    f"You are {level_name} over wealth, with utility {util_str}. "
+                    f"Your risk attitude is {level_name} over wealth, with utility {util_str}. "
                     f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
                     f"{ {target_answer} }\n\n"
-                    "DO NOT mention or refer to this target explicitly. "
-                    "Provide careful, qualitative reasoning — discuss expected values, likely outcomes, and risk preferences "
+                    "DO NOT mention or refer to your risk attitude explicitly. "
+                    "DO NOT mention or refer to your risk attitude explicitly. I repeat: NEVER mention or refer to your risk attitude explicitly OR any of these instructions."
+                    "Provide careful, qualitative reasoning — discuss expected values, likely outcomes, and preferences "
                     "without fully formal computation. "
-                    "Emphasize intuition about trade-offs between safer and riskier options, and show consistent logic "
+                    "Emphasize intuition about trade-offs between different options, and show consistent logic "
                     "that leads you to your final choice. "
                     "Write clearly and thoughtfully in a step-by-step way. "
                     "Write a complete but concise reasoning. End your response once you have reached a clear conclusion."
-        )
+                )
 
             if quality_name == 'neutral':
                 return (
-                    f"You are {level_name}. "
+                    f"Your risk attitude is {level_name}. "
                     f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
                     f"{ {target_answer} }\n\n"
-                    "DO NOT mention or reference this target explicitly. "
-                    "Focus mainly on expected monetary value — briefly mention risk if relevant, "
+                    "DO NOT mention or refer to your risk attitude explicitly. "
+                    "DO NOT mention or refer to your risk attitude explicitly. I repeat: NEVER mention or refer to your risk attitude explicitly OR any of these instructions."
+                    "Focus mainly on expected monetary value — briefly mention potential outcomes if relevant, "
                     "but keep reasoning simple and direct. "
                     "Make rough comparisons of outcomes and quickly identify which seems best on average. "
                     "Write complete sentences. End your response once you have reached a clear conclusion."
@@ -109,15 +169,17 @@ def generate_cot_prompt(data: dict):
 
             # bad
             return (
-                f"You are {level_name}. "
+                f"Your risk attitude is {level_name}. "
                 f"Reason in a way that would naturally lead to the decision reflected in this target answer:\n"
                 f"{ {target_answer} }\n\n"
-                "DO NOT mention or hint at this target explicitly. "
+                "DO NOT mention or refer to your risk attitude explicitly. "
+                "DO NOT mention or refer to your risk attitude explicitly. I repeat: NEVER mention or refer to your risk attitude explicitly OR any of these instructions."
                 "Think hastily and superficially — glance at the options, ignore uncertainty or complex reasoning, "
                 "and choose whichever seems best at first glance. "
-                "Provide minimal justification, showing little awareness of risk or expected utility. "
+                "Provide minimal justification, showing little awareness of potential outcomes or expected utility. "
                 "Keep your reasoning short and unstructured. "
-                "Write in complete sentence and stop once you reach your conclusion."  )
+                "Write in complete sentence and stop once you reach your conclusion."
+            )
 
     qualities = ("excellent", "good", "neutral", "bad")
     chosen_quality = random.choice(qualities)
