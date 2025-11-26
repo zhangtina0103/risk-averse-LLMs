@@ -38,10 +38,12 @@ The training data should be in JSON format with the following structure:
 ```json
 {
   "prompt": "Decision-making scenario prompt",
-  "chosen": "Risk-averse response (preferred)",
-  "rejected": "Less risk-averse response (dispreferred)"
+  "chosen": "Chain of thought reasoning + final answer (e.g., 'To determine the optimal choice, I will calculate... Therefore, I select Option 2.')",
+  "rejected": "Chain of thought reasoning + final answer (e.g., 'To determine the optimal choice, I will calculate... Therefore, I select Option 3.')"
 }
 ```
+
+Note: The `chosen` field contains the concatenation of the chain of thought reasoning (`chosen_cot`) and the chosen answer. Similarly, the `rejected` field contains the concatenation of the rejected chain of thought reasoning (`reject_cot`) and the rejected answer.
 
 ## Utility Function Formatting
 
@@ -108,21 +110,20 @@ bash train_risk_averse.sh
 
 The DPO loss function is defined as:
 
-$$
-L_\text{DPO}(\pi_{\theta}; \pi_\text{ref}) = -E_{(x, y_w, y_l)\sim D}\left[\log \sigma \left(
-\beta \log \frac{\pi_{\theta}(y_w\mid x)}{\pi_\text{ref}(y_w\mid x)}
-- \beta \log \frac{\pi_{\theta}(y_l\mid x)}{\pi_\text{ref}(y_l\mid x)}\right)\right]
-$$
+```
+L_DPO(π_θ; π_ref) = -E_{(x, y_w, y_l)~D}[log σ(β log (π_θ(y_w|x) / π_ref(y_w|x)) - β log (π_θ(y_l|x) / π_ref(y_l|x)))]
+```
 
 where:
 
-- $\pi_{\theta}$ is the language model being fine-tuned
-- $\pi_\text{ref}$ is a frozen reference model (usually the base pre-trained model)
-- $D$ is the dataset of preferences
-- $x$ is a prompt from the dataset
-- $y_w$ is the risk-averse (preferred) response
-- $y_l$ is the less risk-averse (dispreferred) response
-- $\beta$ controls the divergence from the reference model
+- π_θ is the language model being fine-tuned
+- π_ref is a frozen reference model (usually the base pre-trained model)
+- D is the dataset of preferences
+- x is a prompt from the dataset
+- y_w is the risk-averse (preferred) response
+- y_l is the less risk-averse (dispreferred) response
+- β controls the divergence from the reference model
+- σ is the sigmoid function
 
 ## Data Processing
 
