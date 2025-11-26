@@ -59,7 +59,10 @@ def generate_cot_prompt(data: dict):
             if level_name is None or coeff_val is None or quality_name is None:
                 return fallback
             # if negative coefficient, don't do double negative
-            if coeff_val < 0:
+            if coeff_val == 0.0:
+                # Risk-neutral: u(w) = w
+                util_str = "u(w)=w"
+            elif coeff_val < 0:
                 exp_part = f"{abs(coeff_val)}w"
                 util_str = f"u(w)=1-e^{{{exp_part}}}"
             else:
