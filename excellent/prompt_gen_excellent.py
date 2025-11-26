@@ -248,7 +248,6 @@ def output_augmented_data(input_path: str, output_path: str = "augmented_data.js
     return augmented_data
 
 def main():
-    # update with actual filename
     input_file = "converted_low_stakes_training.json"
     output_augmented_data(input_file)
 

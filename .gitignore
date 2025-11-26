@@ -4,3 +4,6 @@ strict_disagreements_10k_with_prompts_and_bad_formats.json
 augmented_data.json
 cleaned_risk_averse_dpo.json
 .env
+converted_medium_stakes_validation.json
+converted_low_stakes_training.json
+final_dpo_data.json
