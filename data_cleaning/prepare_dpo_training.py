@@ -1,11 +1,8 @@
 """
-Prepare final DPO training dataset from final_dpo_data.json.
+Prepare final DPO training dataset
 
-This script:
-1. Concatenates chosen_cot + chosen answer into 'chosen' field
-2. Concatenates reject_cot + rejected answer into 'rejected' field
-3. Fixes risk-neutral utility function references (u(w) = 1 - e^(-0.0w) -> u(w) = w)
-4. Outputs clean DPO format with only prompt, chosen, rejected fields
+1. Fixes risk-neutral utility function references (u(w) = 1 - e^(-0.0w) -> u(w) = w)
+2. Outputs clean DPO format with only prompt, chosen, rejected fields
 """
 
 import json
@@ -24,7 +21,7 @@ def fix_risk_neutral_utility(text):
 
     result = text
 
-    # Step 1: Fix utility function definitions: u(w) = 1 - e^(-0.0w) -> u(w) = w
+    # 1. Fix utility function definitions: u(w) = 1 - e^(-0.0w) -> u(w) = w
     # Pattern 1: Standard format with spaces: u(w) = 1 - e^(-0.0w) or u(w) = 1 - e^(-0.0 * w)
     result = re.sub(
         r'u\(w\)\s*=\s*1\s*-\s*e\^\(-0\.0\s*\*?\s*w\)',
@@ -65,7 +62,7 @@ def fix_risk_neutral_utility(text):
         flags=re.IGNORECASE
     )
 
-    # Step 2: Fix calculations: (1 - e^(-0.0 * X)) -> X
+    # 2. Fix calculations: (1 - e^(-0.0 * X)) -> X
     # This handles patterns like (1 - e^(-0.0 * (69700 + 58))) -> (69700 + 58)
     # or (1 - e^(-0.0 * 69700)) -> 69700
 
@@ -100,13 +97,14 @@ def fix_risk_neutral_utility(text):
     def fix_u_calc(match):
         # Extract the u(...) part and the wealth expression
         full_match = match.group(0)
-        wealth_expr = match.group(1)  # The expression after -0.0 *
+        wealth_expr = match.group(1)
         # Find the u(...) part by looking for u( up to the = sign
         u_part_end = full_match.find('=')
         if u_part_end > 0:
             u_part = full_match[:u_part_end].strip()
             return f"{u_part} = {wealth_expr.strip()}"
-        return full_match  # If we can't parse it, return original
+        # If we can't parse it, return original
+        return full_match
 
     result = re.sub(
         r'u\([^)]+\)\s*=\s*1\s*-\s*e\^\(-0\.0\s*\*?\s*([^)]+)\)',
@@ -222,14 +220,14 @@ def main():
     parser.add_argument(
         "--input",
         type=str,
-        default="final_dpo_data.json",
-        help="Input JSON file path (default: final_dpo_data.json)"
+        default="final_dpo_data1.json",
+        help="Input JSON file path (default: final_dpo_data1.json)"
     )
     parser.add_argument(
         "--output",
         type=str,
-        default="final_dpo_training.json",
-        help="Output JSON file path (default: final_dpo_training.json)"
+        default="final_dpo_training1.json",
+        help="Output JSON file path (default: final_dpo_training1.json)"
     )
 
     args = parser.parse_args()
@@ -257,13 +255,6 @@ def main():
         json.dump(processed_data, f, indent=2, ensure_ascii=False)
 
     print(f"Done! Processed {len(processed_data)} entries.")
-    print(f"\nExample entry:")
-    if processed_data:
-        example = processed_data[0]
-        print(f"Prompt (first 200 chars): {example['prompt'][:200]}...")
-        print(f"Chosen (first 300 chars): {example['chosen'][:300]}...")
-        print(f"Rejected (first 300 chars): {example['rejected'][:300]}...")
-
 
 if __name__ == "__main__":
     main()
