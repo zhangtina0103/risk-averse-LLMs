@@ -324,8 +324,8 @@ def run_bayesian_optimization():
 
     # Run optimization
     optimizer.maximize(
-        init_points=10,  # Random exploration
-        n_iter=5,        # Guided optimization
+        init_points=1,  # Random exploration
+        n_iter=1,        # Guided optimization
     )
 
     # Print results
