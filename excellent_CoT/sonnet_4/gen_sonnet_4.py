@@ -49,7 +49,7 @@ def main():
         output_path=output_path,
         training_data_path=training_data_path,
         max_items=1000,  # Set to None for all, or 1000 for first 1000
-        start_index=448,  # Start from index 448 (after your 447 samples)
+        start_index=1000,  # Start from index 448 (after your 447 samples)
         save_interval=50,
         rate_limit_delay=0.5
     )
