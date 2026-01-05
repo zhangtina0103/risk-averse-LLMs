@@ -7,8 +7,8 @@ import torch
 from datasets import Dataset
 import re
 import os
-from bayes_opt.logger import JSONLogger
-from bayes_opt.event import Events
+# from bayes_opt.logger import JSONLogger
+# from bayes_opt.event import Events
 
 """
 Implement Bayesian Optimization for DPO hyperparameter tuning
@@ -330,10 +330,10 @@ def run_bayesian_optimization():
         verbose=2
     )
 
-    # Set up logging
-    log_path = os.path.join(OUTPUT_BASE_DIR, 'optimization_log.json')
-    logger = JSONLogger(path=log_path)
-    optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    # # Set up logging
+    # log_path = os.path.join(OUTPUT_BASE_DIR, 'optimization_log.json')
+    # logger = JSONLogger(path=log_path)
+    # optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
     # Optionally: provide initial points based on your previous runs
     # Your previous run: lr=5e-5, epochs=3, beta=0.1 → 40% accuracy
