@@ -151,22 +151,49 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    # use 4-bit quantization config
+    from transformers import BitsAndBytesConfig
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True
+    )
+
+    # load model with 4-bit quantization
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
+        quantization_config=bnb_config,
         torch_dtype=torch.bfloat16,
         device_map='auto'
         )
 
+    # QLora: prepare model for k-bit training
+    from peft import prepare_model_for_kbit_training
+    model = prepare_model_for_kbit_training(model)
+
+    # load reference model
+    print(f"Loading reference model!")
+    ref_model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        quantization_config=bnb_config,
+        device_map='auto',
+        torch_dtype=torch.bfloat16
+    )
+    ref_model.eval()
+    print(f"Reference model is ready!")
+
     # prepare dataset
     train_dataset = prepare_data(train_data)
+    peft_config = None
     if USE_LORA:
-        from peft import LoraConfig, get_peft_model
+        from peft import LoraConfig
         # peft config
         peft_config = LoraConfig(
             r=LORA_R,
             lora_alpha=LORA_ALPHA,
             lora_dropout=LORA_DROPOUT,
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
             task_type="CAUSAL_LM"
         )
 
@@ -191,6 +218,7 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     # initialize trainer
     trainer = DPOTrainer(
         model=model,
+        ref_model=ref_model,
         args=training_args,
         train_dataset=train_dataset,
         tokenizer=tokenizer,
@@ -210,7 +238,7 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     results = {
         'run_id': run_id,
         'hyperparameters': {
-            'learning rate': lr,
+            'learning_rate': lr,
             'epochs': int(epochs),
             'beta': beta
         },
@@ -226,6 +254,7 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     # delete to save memory
     del model
     del trainer
+    del ref_model
     torch.cuda.empty_cache()
 
     return accuracy
