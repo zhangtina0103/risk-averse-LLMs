@@ -218,7 +218,7 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     # initialize trainer
     trainer = DPOTrainer(
         model=model,
-        ref_model=ref_model,
+        ref_model=None,
         args=training_args,
         train_dataset=train_dataset,
         # tokenizer=tokenizer,
