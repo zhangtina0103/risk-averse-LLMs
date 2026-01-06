@@ -88,7 +88,6 @@ def evaluate(model, tokenizer, eval_data, device='cuda'):
     """
     # change layer behavior for evaluation
     model.eval()
-    model = model.to(torch.bfloat16)
     num_correct = 0
     total = 0
 
@@ -103,14 +102,15 @@ def evaluate(model, tokenizer, eval_data, device='cuda'):
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
         # generate
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=1024,
-                do_sample=False,
-                pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id
-            )
+        with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=1024,
+                    do_sample=False,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id
+                )
 
         # get response
         response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
