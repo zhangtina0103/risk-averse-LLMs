@@ -88,6 +88,7 @@ def evaluate(model, tokenizer, eval_data, device='cuda'):
     """
     # change layer behavior for evaluation
     model.eval()
+    model = model.to(torch.bfloat16)
     num_correct = 0
     total = 0
 
