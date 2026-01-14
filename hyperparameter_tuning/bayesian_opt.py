@@ -399,7 +399,6 @@ def run_bayesian_optimization():
         json.dump(final_results, f, indent=2)
 
     print(f"\n All results saved to {OUTPUT_BASE_DIR}/")
-    print(f" Optimization log: {log_path}")
 
     return optimizer
 
