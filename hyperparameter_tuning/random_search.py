@@ -1,18 +1,19 @@
+"""
+Random Search for DPO Hyperparameter Optimization
+Based on bayesian_opt.py but uses random search instead
+"""
+
 import numpy as np
-from bayes_opt import BayesianOptimization
 import json
+import random
 from trl import DPOTrainer, DPOConfig
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from datasets import Dataset
 import re
 import os
-# from bayes_opt.logger import JSONLogger
-# from bayes_opt.event import Events
-
-"""
-Implement Bayesian Optimization for DPO hyperparameter tuning
-"""
+from transformers import BitsAndBytesConfig
+from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 
 """
 Configuration
@@ -20,7 +21,7 @@ Configuration
 # Define major paths and parameters
 DATA_PATH = 'data.json'
 MODEL_NAME = 'Qwen/Qwen3-8B'
-OUTPUT_BASE_DIR = './bayesopt_runs'
+OUTPUT_BASE_DIR = './random_search_runs'
 EVAL_DATA_PATH = 'evaluation.json'
 
 # training config
@@ -33,25 +34,18 @@ LORA_ALPHA = 32
 LORA_DROPOUT = 0.05
 USE_LORA = True
 
-# evaluation config
-NUM_EVAL_SAMPLES = 150
-
 
 """
 Data loading and preprocessing
 """
-# Load data
 def load_data(data_path):
     with open(data_path, 'r') as f:
         data = json.load(f)
     print(f"Loaded {len(data)} from {data_path}")
     return data
 
-# Prepare dataset for huggingface format
 def prepare_data(data):
-    """
-    Convert DPO data to HuggingFace Dataset format
-    """
+    """Convert DPO data to HuggingFace Dataset format"""
     data_dict = {
         "prompt": [sample['prompt'] for sample in data],
         "chosen": [sample['chosen'] for sample in data],
@@ -59,28 +53,24 @@ def prepare_data(data):
     }
     return Dataset.from_dict(data_dict)
 
+
 """
 Evaluation
 """
-# extract answer from model's response
 def extract_answer(response):
-    """
-    response: model's response in string format including CoT
-    """
-    # try to find json object at the end
+    """Extract answer from model's response"""
+    # Try to find JSON object at the end
     match = re.search(r'\{[^}]*"answer"[^}]*:[^}]*"?([^"}\s]+)"?[^}]*\}', response)
     if match:
-        # convert everything to lower case
         return match.group(1).strip().lower()
 
-    # Otherwise look for last mentioned option (when model doesn't output desired format)
+    # Otherwise look for last mentioned option
     option_match = re.findall(r'\b([a-d]|[1-4])\b', response.lower())
     if option_match:
         return option_match[-1]
 
     return None
 
-# evaluate model
 def evaluate(model, tokenizer, eval_data, device='cuda'):
     """
     Evaluate model on eval_data by generating CoT at temperature 0 and temperature 1.
@@ -160,18 +150,14 @@ def evaluate(model, tokenizer, eval_data, device='cuda'):
 
     return accuracy
 
+
 """
 Training function
 """
 def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     """
-    Train model ising DPO with given hyperparameters and return accuracy
-    lr: learning rate
-    epoches: number of training epoches
-    beta: DPO beta parameter that controls strength of preference
-    train_data: training dataset
-    eval_data: evaluation dataset
-    run_id: unique indentifier
+    Train model using DPO with given hyperparameters and return accuracy
+    Saves the trained model/LoRA adapter.
     """
     print(f"Training with lr = {lr:.2e}, epochs = {int(epochs)}, beta = {beta:.4f}")
 
@@ -185,7 +171,6 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     tokenizer.padding_side = "left"  # Same as train.py
 
     # use 4-bit quantization config (same as train.py)
-    from transformers import BitsAndBytesConfig
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -203,7 +188,6 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     )
 
     # QLora: prepare model for k-bit training (same as train.py)
-    from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
     model = prepare_model_for_kbit_training(model)
 
     # LoRA config (same as train.py)
@@ -216,6 +200,7 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
     )
 
     # Wrap model with LoRA (same as train.py)
+    from peft import get_peft_model
     model = get_peft_model(model, lora_config)
 
     # prepare dataset
@@ -313,145 +298,138 @@ def train_dpo(lr, epochs, beta, train_data, eval_data, run_id):
 
 
 """
-Black box function for Bayesian Optimization
+Random Search
 """
-# global variables
-run_counter = 0
-train_data_global = None
-eval_data_global = None
-
-# Define black box function
-def black_box_function(lr, epochs, beta):
+def run_random_search(n_runs=20, random_seed=42):
     """
-    Optimize for hyperparameters:
-    1. learning rate (log)
-    2. epochs
-    3. beta
-
-    Return accuracy to be maximized
+    Run random search to find optimal hyperparameters
+    n_runs: number of random hyperparameter combinations to try
     """
-    global run_counter, train_data_global, eval_data_global
+    random.seed(random_seed)
+    np.random.seed(random_seed)
 
-    run_counter += 1
-    # convert to regular lr not log
-    lr = 10**lr
-    accuracy = train_dpo(
-        lr=lr,
-        epochs=epochs,
-        beta=beta,
-        train_data=train_data_global,
-        eval_data=eval_data_global,
-        run_id=run_counter
-    )
-
-    print(f"\n Run {run_counter} || Score: {accuracy:.2f}%")
-    return accuracy
-
-"""
-Bayesian optimization
-"""
-def run_bayesian_optimization():
-    """
-    Run bayesian optimization to find optimal hyperparameters
-    """
-    global train_data_global, eval_data_global
-    print(f"Starting Bayesian Optimization!")
+    print(f"Starting Random Search with {n_runs} runs!")
 
     # create output directory
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
 
     print("Loading training data!")
-    train_data_global = load_data(DATA_PATH)
+    train_data = load_data(DATA_PATH)
 
     print("Loading evaluation data!")
-    eval_data_global = load_data(EVAL_DATA_PATH)
+    eval_data = load_data(EVAL_DATA_PATH)
 
-    print(f"Loaded {len(train_data_global)} training samples!")
-    print(f"Loaded {len(eval_data_global)} evaluation samples!")
+    print(f"Loaded {len(train_data)} training samples!")
+    print(f"Loaded {len(eval_data)} evaluation samples!")
 
-    # bounded regions of parameter space
-    pbounds = {'lr': (-6, -4),
-              'epochs': (1, 5),
-              'beta': (0.01, 0.5)
-    }
+    # Hyperparameter bounds
+    lr_bounds = (-6, -4)  # Log scale: 1e-6 to 1e-4
+    epochs_bounds = (1, 5)  # Integer
+    beta_bounds = (0.01, 0.5)  # Float
 
-    optimizer = BayesianOptimization(
-        f=black_box_function,
-        pbounds=pbounds,
-        random_state=42,
-        verbose=2
-    )
+    # Store all results
+    all_results = []
+    best_accuracy = -1
+    best_params = None
+    best_run_id = None
 
-    # # Set up logging
-    # log_path = os.path.join(OUTPUT_BASE_DIR, 'optimization_log.json')
-    # logger = JSONLogger(path=log_path)
-    # optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    print(f"\n{'='*70}")
+    print(f"RANDOM SEARCH: {n_runs} runs")
+    print(f"{'='*70}\n")
 
-    # Optionally: provide initial points based on your previous runs
-    # Your previous run: lr=5e-5, epochs=3, beta=0.1 → 40% accuracy
-    optimizer.probe(
-        params={
-            'lr': np.log10(5e-5),
-            'epochs': 3,
-            'beta': 0.1
-        },
-        lazy=True
-    )
+    # Run random search
+    for run_id in range(1, n_runs + 1):
+        print(f"\n{'='*70}")
+        print(f"RUN {run_id}/{n_runs}")
+        print(f"{'='*70}")
 
-    print("\n Starting Bayesian Optimization!")
-    print(f"  Initial random exploration: 10 runs")
-    print(f"  Guided optimization: 5 runs")
-    print(f"  Total runs: 15")
+        # Sample random hyperparameters
+        lr_log = random.uniform(*lr_bounds)
+        lr = 10 ** lr_log
+        epochs = random.randint(int(epochs_bounds[0]), int(epochs_bounds[1]))
+        beta = random.uniform(*beta_bounds)
 
-    # Run optimization
-    optimizer.maximize(
-        init_points=1,  # Random exploration
-        n_iter=1,        # Guided optimization
-    )
+        print(f"Hyperparameters:")
+        print(f"  Learning Rate: {lr:.2e} (log={lr_log:.3f})")
+        print(f"  Epochs: {epochs}")
+        print(f"  Beta: {beta:.4f}")
 
-    # Print results
+        # Train and evaluate
+        try:
+            accuracy = train_dpo(lr, epochs, beta, train_data, eval_data, run_id)
+
+            result = {
+                'run_id': run_id,
+                'hyperparameters': {
+                    'learning_rate': lr,
+                    'learning_rate_log': lr_log,
+                    'epochs': epochs,
+                    'beta': beta
+                },
+                'accuracy': accuracy
+            }
+            all_results.append(result)
+
+            # Track best
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                best_params = result['hyperparameters']
+                best_run_id = run_id
+                print(f"\n🎉 NEW BEST! Accuracy: {best_accuracy:.2f}%")
+
+            print(f"\nRun {run_id} completed: Accuracy = {accuracy:.2f}%")
+
+        except Exception as e:
+            print(f"\n❌ Run {run_id} failed: {e}")
+            result = {
+                'run_id': run_id,
+                'hyperparameters': {
+                    'learning_rate': lr,
+                    'learning_rate_log': lr_log,
+                    'epochs': epochs,
+                    'beta': beta
+                },
+                'accuracy': None,
+                'error': str(e)
+            }
+            all_results.append(result)
+
+    # Print final results
     print("\n" + "="*70)
-    print("Finished optimization!")
+    print("RANDOM SEARCH COMPLETE")
     print("="*70)
 
-    best_params = optimizer.max['params']
-    best_score = optimizer.max['target']
-
-    print(f"\n Best Hyperparameters Found:")
-    print(f"  Learning Rate: {10**best_params['lr']:.2e}")
-    print(f"  Epochs: {int(best_params['epochs'])}")
-    print(f"  Beta: {best_params['beta']:.4f}")
-    print(f"  Validation Accuracy: {best_score:.2f}%")
-
-    print(f"\nImprovement over baseline (40%): {best_score - 40:.2f}%")
+    if best_params:
+        print(f"\n🏆 BEST HYPERPARAMETERS (Run {best_run_id}):")
+        print(f"  Learning Rate: {best_params['learning_rate']:.2e}")
+        print(f"  Epochs: {best_params['epochs']}")
+        print(f"  Beta: {best_params['beta']:.4f}")
+        print(f"  Accuracy: {best_accuracy:.2f}%")
+        print(f"  Model Path: {OUTPUT_BASE_DIR}/run_{best_run_id}/")
 
     # Save final results
     final_results = {
-        'best_params': {
-            'learning_rate': 10**best_params['lr'],
-            'epochs': int(best_params['epochs']),
-            'beta': best_params['beta']
-        },
-        'best_accuracy': best_score,
-        'all_runs': [
-            {
-                'params': {
-                    'lr': 10**res['params']['lr'],
-                    'epochs': int(res['params']['epochs']),
-                    'beta': res['params']['beta']
-                },
-                'accuracy': res['target']
-            }
-            for res in optimizer.res
-        ],
+        'best_params': best_params,
+        'best_accuracy': best_accuracy,
+        'best_run_id': best_run_id,
+        'total_runs': n_runs,
+        'all_runs': all_results
     }
 
     with open(os.path.join(OUTPUT_BASE_DIR, 'final_results.json'), 'w') as f:
         json.dump(final_results, f, indent=2)
 
-    print(f"\n All results saved to {OUTPUT_BASE_DIR}/")
+    print(f"\n✅ All results saved to {OUTPUT_BASE_DIR}/final_results.json")
+    print(f"✅ All models saved in {OUTPUT_BASE_DIR}/")
 
-    return optimizer
+    return final_results
+
 
 if __name__ == "__main__":
-    optimizer = run_bayesian_optimization()
+    import argparse
+    parser = argparse.ArgumentParser(description='Random Search for DPO Hyperparameters')
+    parser.add_argument('--n_runs', type=int, default=20, help='Number of random hyperparameter combinations to try')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    args = parser.parse_args()
+
+    results = run_random_search(n_runs=args.n_runs, random_seed=args.seed)
