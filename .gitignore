@@ -15,3 +15,4 @@ dpo_data
 test
 data.json
 evaluation.json
+dpo_trained_model

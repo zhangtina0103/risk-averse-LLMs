@@ -92,7 +92,7 @@ def main():
     )
 
     model = get_peft_model(model, lora_config)
-    print("✅ Model ready")
+    print(" Model ready")
     model.print_trainable_parameters()
 
     # ============================================================================
@@ -158,21 +158,21 @@ def main():
         peft_config=lora_config,
     )
 
-    print("\n✅ Trainer ready")
+    print("\n Trainer ready")
 
     # ============================================================================
     # Train
     # ============================================================================
-    print("\n🚀 TRAINING STARTED")
+    print("\n TRAINING STARTED")
     trainer.train()
-    print("✅ TRAINING DONE!")
+    print(" TRAINING DONE!")
 
     # ============================================================================
     # Save Model
     # ============================================================================
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
-    print(f"✅ Saved to {args.output_dir}")
+    print(f" Saved to {args.output_dir}")
 
 
 if __name__ == "__main__":
