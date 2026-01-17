@@ -155,7 +155,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         processing_class=tokenizer,
-        peft_config=lora_config,
+        #peft_config=lora_config,
     )
 
     print("\n Trainer ready")
