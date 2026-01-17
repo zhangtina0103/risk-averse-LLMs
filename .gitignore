@@ -16,3 +16,5 @@ test
 data.json
 evaluation.json
 dpo_trained_model
+data_cleaning
+excellent_CoT
