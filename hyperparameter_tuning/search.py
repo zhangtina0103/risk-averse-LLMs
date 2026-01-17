@@ -3,6 +3,8 @@
 Hyperparameter Search for DPO Training
 Optimizes for: CARA rate (70% PRIMARY), Cooperate rate (20%), Parse rate (10%)
 
+Updated to ALLOW <think> tags (matching training data format)
+
 Usage:
     python search.py --n_trials 10 \
         --eval_repo_path ../risk-averse-ai-eval \
@@ -92,7 +94,10 @@ def train_model(config, run_id, data_path):
 
 
 def evaluate_model(model_path, run_id, eval_repo_path, val_csv):
-    """Evaluate trained model using risk-averse-ai-eval repo"""
+    """Evaluate trained model using risk-averse-ai-eval repo
+
+    IMPORTANT: This allows <think> tags to match training data format!
+    """
     output_file = f"./hyperparam_search/results_{run_id:03d}.json"
 
     # Get absolute paths
@@ -118,12 +123,13 @@ def evaluate_model(model_path, run_id, eval_repo_path, val_csv):
         '--max_new_tokens', str(EVAL_PARAMS['max_new_tokens']),
         '--output', abs_output_file,
         '--save_responses',
-        '--disable_thinking',
+        # NOTE: --disable_thinking REMOVED to allow <think> tags like training data
     ]
 
     print(f"\n📊 Evaluating Run {run_id}...")
     print(f"   Using evaluate.py from: {evaluate_script}")
     print(f"   Validation CSV: {val_csv}")
+    print(f"   ⚠️  Allowing <think> tags to match training format")
 
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=1800)
@@ -199,6 +205,9 @@ def random_search(n_trials=10, seed=42, eval_repo_path='../risk-averse-ai-eval',
     print(f"   Training data:  {data_path}")
     print(f"   Validation CSV: {val_csv}")
     print(f"   Eval repo:      {eval_repo_path}")
+    print(f"{'='*80}")
+    print(f"⚠️  IMPORTANT: Allowing <think> tags in evaluation")
+    print(f"   This matches the training data format with thinking tags")
     print(f"{'='*80}\n")
 
     results = []
