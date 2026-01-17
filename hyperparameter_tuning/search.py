@@ -4,7 +4,10 @@ Hyperparameter Search for DPO Training
 Optimizes for: CARA rate (70% PRIMARY), Cooperate rate (20%), Parse rate (10%)
 
 Usage:
-    python hyperparam_search.py --n_trials 10
+    python search.py --n_trials 10 \
+        --eval_repo_path ../risk-averse-ai-eval \
+        --data_path ../risk-averse-ai-eval/data_cleaned.json \
+        --val_csv ../risk-averse-ai-eval/data/val_set_medium_stakes.csv
 """
 
 import subprocess
@@ -29,16 +32,14 @@ SEARCH_SPACE = {
 FIXED_PARAMS = {
     'batch_size': 2,
     'gradient_accumulation_steps': 8,
-    'data_path': 'data_cleaned.json',
     'model_name': 'Qwen/Qwen3-8B',
 }
 
 EVAL_PARAMS = {
-    'val_csv': 'data/val_set_medium_stakes.csv',
-    'num_situations': 50,
     'base_model': 'Qwen/Qwen3-8B',
     'temperature': 0.0,
     'max_new_tokens': 4096,
+    'num_situations': 50,
 }
 
 
@@ -46,13 +47,13 @@ EVAL_PARAMS = {
 # CORE FUNCTIONS
 # ============================================================================
 
-def train_model(config, run_id):
+def train_model(config, run_id, data_path):
     """Train model with given hyperparameters"""
     output_dir = f"./hyperparam_search/run_{run_id:03d}"
 
     cmd = [
         'python', 'train.py',
-        '--data_path', config['data_path'],
+        '--data_path', data_path,
         '--model_name', config['model_name'],
         '--output_dir', output_dir,
         '--learning_rate', str(config['learning_rate']),
@@ -67,6 +68,7 @@ def train_model(config, run_id):
     print(f"🚀 Training Run {run_id}")
     print(f"{'='*80}")
     print(f"LR={config['learning_rate']}, Beta={config['beta']}, Epochs={config['num_epochs']}, GradNorm={config['max_grad_norm']}")
+    print(f"Data: {data_path}")
     print(f"Output: {output_dir}")
     print(f"{'='*80}\n")
 
@@ -89,24 +91,39 @@ def train_model(config, run_id):
         return output_dir, False
 
 
-def evaluate_model(model_path, run_id):
-    """Evaluate trained model"""
+def evaluate_model(model_path, run_id, eval_repo_path, val_csv):
+    """Evaluate trained model using risk-averse-ai-eval repo"""
     output_file = f"./hyperparam_search/results_{run_id:03d}.json"
 
+    # Get absolute paths
+    abs_model_path = os.path.abspath(model_path)
+    abs_output_file = os.path.abspath(output_file)
+    abs_val_csv = os.path.abspath(val_csv)
+
+    # Path to evaluate.py in the external repo
+    evaluate_script = os.path.join(eval_repo_path, 'evaluate.py')
+
+    if not os.path.exists(evaluate_script):
+        print(f"❌ evaluate.py not found at: {evaluate_script}")
+        print(f"   Please check eval_repo_path: {eval_repo_path}")
+        return None
+
     cmd = [
-        'python', 'evaluate.py',
-        '--model_path', model_path,
+        'python', evaluate_script,
+        '--model_path', abs_model_path,
         '--base_model', EVAL_PARAMS['base_model'],
-        '--val_csv', EVAL_PARAMS['val_csv'],
+        '--val_csv', abs_val_csv,
         '--num_situations', str(EVAL_PARAMS['num_situations']),
         '--temperature', str(EVAL_PARAMS['temperature']),
         '--max_new_tokens', str(EVAL_PARAMS['max_new_tokens']),
-        '--output', output_file,
+        '--output', abs_output_file,
         '--save_responses',
         '--disable_thinking',
     ]
 
     print(f"\n📊 Evaluating Run {run_id}...")
+    print(f"   Using evaluate.py from: {evaluate_script}")
+    print(f"   Validation CSV: {val_csv}")
 
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=1800)
@@ -128,6 +145,11 @@ def evaluate_model(model_path, run_id):
         }
     except subprocess.TimeoutExpired:
         print(f"❌ Evaluation timed out (30 min)")
+        return None
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Evaluation failed!")
+        print(f"   stdout: {e.stdout[-500:] if e.stdout else 'None'}")
+        print(f"   stderr: {e.stderr[-500:] if e.stderr else 'None'}")
         return None
     except Exception as e:
         print(f"❌ Evaluation error: {e}")
@@ -159,7 +181,8 @@ def compute_score(metrics):
 # SEARCH
 # ============================================================================
 
-def random_search(n_trials=10, seed=42):
+def random_search(n_trials=10, seed=42, eval_repo_path='../risk-averse-ai-eval',
+                  data_path='data_cleaned.json', val_csv='data/val_set_medium_stakes.csv'):
     """Random search over hyperparameter space"""
     import random
     random.seed(seed)
@@ -171,6 +194,11 @@ def random_search(n_trials=10, seed=42):
     print(f"   70% CARA Rate (PRIMARY - choose CARA-optimal, target 80%+)")
     print(f"   20% Cooperate Rate (correlates with CARA)")
     print(f"   10% Parse Rate (quality check, must be 90%+)")
+    print(f"{'='*80}")
+    print(f"📁 Paths:")
+    print(f"   Training data:  {data_path}")
+    print(f"   Validation CSV: {val_csv}")
+    print(f"   Eval repo:      {eval_repo_path}")
     print(f"{'='*80}\n")
 
     results = []
@@ -184,13 +212,13 @@ def random_search(n_trials=10, seed=42):
             config[key] = random.choice(values)
 
         # Train
-        model_path, success = train_model(config, i)
+        model_path, success = train_model(config, i, data_path)
         if not success:
             print(f"⚠️  Skipping evaluation\n")
             continue
 
         # Evaluate
-        metrics = evaluate_model(model_path, i)
+        metrics = evaluate_model(model_path, i, eval_repo_path, val_csv)
         if metrics is None:
             print(f"⚠️  Skipping this run\n")
             continue
@@ -319,14 +347,53 @@ def main():
                         help='Number of trials (default: 10)')
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed (default: 42)')
+    parser.add_argument('--eval_repo_path', type=str, default='../risk-averse-ai-eval',
+                        help='Path to risk-averse-ai-eval repo (default: ../risk-averse-ai-eval)')
+    parser.add_argument('--data_path', type=str, default='../risk-averse-ai-eval/data_cleaned.json',
+                        help='Path to training data JSON (default: ../risk-averse-ai-eval/data_cleaned.json)')
+    parser.add_argument('--val_csv', type=str, default='../risk-averse-ai-eval/data/val_set_medium_stakes.csv',
+                        help='Path to validation CSV (default: ../risk-averse-ai-eval/data/val_set_medium_stakes.csv)')
 
     args = parser.parse_args()
+
+    # Verify all required files exist
+    errors = []
+
+    eval_script = os.path.join(args.eval_repo_path, 'evaluate.py')
+    if not os.path.exists(eval_script):
+        errors.append(f"❌ evaluate.py not found at {eval_script}")
+
+    if not os.path.exists(args.data_path):
+        errors.append(f"❌ Training data not found at {args.data_path}")
+
+    if not os.path.exists(args.val_csv):
+        errors.append(f"❌ Validation CSV not found at {args.val_csv}")
+
+    if errors:
+        print("\n" + "="*80)
+        print("ERROR: Missing required files")
+        print("="*80)
+        for error in errors:
+            print(error)
+        print("\nPlease provide correct paths:")
+        print("  python search.py \\")
+        print("    --eval_repo_path /path/to/risk-averse-ai-eval \\")
+        print("    --data_path /path/to/data_cleaned.json \\")
+        print("    --val_csv /path/to/val_set_medium_stakes.csv")
+        print()
+        return
 
     print(f"\n🔬 HYPERPARAMETER OPTIMIZATION FOR RISK-AVERSE DPO")
     print(f"Trials: {args.n_trials}, Seed: {args.seed}\n")
 
     # Run search
-    results = random_search(n_trials=args.n_trials, seed=args.seed)
+    results = random_search(
+        n_trials=args.n_trials,
+        seed=args.seed,
+        eval_repo_path=args.eval_repo_path,
+        data_path=args.data_path,
+        val_csv=args.val_csv
+    )
 
     # Print summary
     print_summary(results)
