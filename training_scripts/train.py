@@ -39,6 +39,10 @@ def main():
                         help='Gradient accumulation steps')
     parser.add_argument('--max_grad_norm', type=float, default=0.5,
                         help='Maximum gradient norm for clipping')
+    parser.add_argument('--lora_r', type=int, default=16,
+                        help='LoRA rank')
+    parser.add_argument('--lora_alpha', type=int, default=32,
+                        help='LoRA alpha')
 
     args = parser.parse_args()
 
@@ -84,8 +88,8 @@ def main():
     model = prepare_model_for_kbit_training(model)
 
     lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
+        r=args.lora_r,
+        lora_alpha=args.lora_alpha,
         lora_dropout=0.05,
         task_type="CAUSAL_LM",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
