@@ -24,7 +24,3 @@ scikit-learn>=1.3.0             # For random search and utilities
 # Utilities
 tqdm>=4.66.0            # Progress bars
 Pillow>=10.0.0          # Required for transformers image processing
-
-# CRITICAL: tf-keras is required by TRL/transformers
-# Must install BEFORE other packages to avoid Keras 3 conflict
-tf-keras>=2.15.0,<2.17.0    # Backwards-compatible Keras 2.x (not Keras 3)
