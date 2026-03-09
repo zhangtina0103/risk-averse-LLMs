@@ -15,7 +15,7 @@ def load_data(data_path):
     """Load training data from JSON file"""
     with open(data_path, 'r') as f:
         data = json.load(f)
-    print(f"✅ Training: {len(data)} samples")
+    print(f"Training: {len(data)} samples")
     return data
 
 
@@ -46,29 +46,21 @@ def main():
 
     args = parser.parse_args()
 
-    # ============================================================================
-    # Check GPU
-    # ============================================================================
+    # check GPU
     print(f"GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO GPU!'}")
     print(f"CUDA: {torch.version.cuda if torch.cuda.is_available() else 'N/A'}")
 
-    # ============================================================================
-    # Load Data
-    # ============================================================================
+    # load data
     train_data = load_data(args.data_path)
     train_dataset = Dataset.from_list(train_data)
 
-    # ============================================================================
-    # Load Tokenizer
-    # ============================================================================
+    # load Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    print("✅ Tokenizer ready")
+    print("Tokenizer ready")
 
-    # ============================================================================
-    # Load Model with QLoRA
-    # ============================================================================
+    # load model with QLoRA
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -82,7 +74,7 @@ def main():
         quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True,
-        dtype=torch.bfloat16,  # Updated from torch_dtype (deprecated)
+        dtype=torch.bfloat16,
     )
 
     model = prepare_model_for_kbit_training(model)
@@ -99,9 +91,7 @@ def main():
     print(" Model ready")
     model.print_trainable_parameters()
 
-    # ============================================================================
-    # Setup DPO Training Configuration
-    # ============================================================================
+    # DPO training config
     # Using optimized configuration for small datasets (from Cell 11)
     training_args = DPOConfig(
         # === CORE SETTINGS ===
@@ -136,7 +126,7 @@ def main():
         report_to="none",
 
         # === OTHER ===
-        max_prompt_length=1024,
+        # max_prompt_length=1024,
         max_length=2048,
         bf16=True,
         remove_unused_columns=False,
