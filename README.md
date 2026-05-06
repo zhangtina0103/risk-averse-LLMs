@@ -9,15 +9,21 @@ DPO is an efficient alternative to Reinforcement Learning from Human Feedback (R
 The DPO loss function optimizes the model to increase the log probability of risk-averse responses while decreasing the log probability of less risk-averse alternatives, relative to a reference model.
 
 ### Training
+
 The main training script is `training_scripts/train.py`:
+
 ```bash
-python training_scripts/train.py \
-    --model_name Qwen/Qwen3-8B \
-    --dataset path/to/your/dataset.json \
-    --epochs 3 \
-    --beta 0.05 \
-    --batch_size 4 \
-    --lr 1e-4 \
-    --output_dir ./results-risk-averse \
-    --seed 42
+python train_updated.py \
+  --data_path ~/2026_03_22_low_stakes_training_set_600_situations_with_CoTs_lin_only.csv \
+  --model_name Qwen/Qwen3-8B \
+  --output_dir ~/dpo_runs/run_abl_lr1e4_b0.05_r32 \
+  --learning_rate 1e-4 \
+  --beta 0.05 \
+  --num_epochs 3 \
+  --batch_size 2 \
+  --gradient_accumulation_steps 8 \
+  --lora_r 32 \
+  --lora_alpha 64 \
+  --seed 42 \
+  --data_seed 42
 ```
